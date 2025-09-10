@@ -11,7 +11,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Users, Clock, XCircle, UserCheck, MessageSquare } from "lucide-react";
+import { Users, Clock, XCircle, UserCheck } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 // Dummy API

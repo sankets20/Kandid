@@ -12,7 +12,6 @@ import {
   Activity
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { usePathname } from "next/navigation";
 
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard", active: true },
