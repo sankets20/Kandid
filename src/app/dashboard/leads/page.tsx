@@ -13,21 +13,22 @@ import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
-// Dummy API (mock data)
-async function fetchLeads({ pageParam = 0 }): Promise<any[]> {
-  const res = await fetch(`/api/leads?page=${pageParam}`);
-  if (!res.ok) throw new Error("Failed to fetch leads");
-  return res.json();
-}
-
+// ✅ Typed Lead interface
 type Lead = {
   id: number;
   name: string;
   role: string;
   company: string;
   activity: number;
-  status: { label: string; type: string };
+  status: { label: string; type: "pending" | "sent" | "followup" };
 };
+
+// ✅ Typed fetch
+async function fetchLeads({ pageParam = 0 }): Promise<Lead[]> {
+  const res = await fetch(`/api/leads?page=${pageParam}`);
+  if (!res.ok) throw new Error("Failed to fetch leads");
+  return res.json() as Promise<Lead[]>;
+}
 
 export default function LeadsPage() {
   const {
@@ -42,13 +43,12 @@ export default function LeadsPage() {
     queryKey: ["leads"],
     queryFn: ({ pageParam = 0 }) => fetchLeads({ pageParam }),
     initialPageParam: 0,
-    getNextPageParam: (lastPage, pages) =>
-      pages.length < 10 ? pages.length : undefined,
-    staleTime: 1000 * 60 * 1, // ✅ keep data fresh for 1 min
-    gcTime: 1000 * 60 * 5, // ✅ keep in cache for 5 min
+    getNextPageParam: (lastPage, pages) => (pages.length < 10 ? pages.length : undefined),
+    staleTime: 1000 * 60,
+    gcTime: 1000 * 60 * 5,
   });
 
-  const leads: Lead[] = data?.pages.flat() ?? [];
+  const leads: Lead[] = React.useMemo(() => data?.pages.flat() ?? [], [data]);
 
   const columns: ColumnDef<Lead>[] = [
     {
@@ -100,21 +100,13 @@ export default function LeadsPage() {
     },
   ];
 
-  const table = useReactTable({
-    data: leads,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-  });
+  const table = useReactTable({ data: leads, columns, getCoreRowModel: getCoreRowModel() });
 
   return (
     <div className="p-6">
       <Card className="p-0 overflow-hidden">
         {isPending && <div className="p-6 text-center">Loading leads...</div>}
-        {isError && (
-          <div className="p-6 text-center text-red-500">
-            Failed to load leads.
-          </div>
-        )}
+        {isError && <div className="p-6 text-center text-red-500">Failed to load leads.</div>}
 
         {isSuccess && (
           <div className="max-h-[600px] overflow-y-auto">
@@ -127,10 +119,7 @@ export default function LeadsPage() {
                         key={header.id}
                         className="px-4 py-2 text-left font-medium text-gray-600"
                       >
-                        {flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
+                        {flexRender(header.column.columnDef.header, header.getContext())}
                       </th>
                     ))}
                   </tr>
@@ -141,10 +130,7 @@ export default function LeadsPage() {
                   <tr key={row.id} className="border-b">
                     {row.getVisibleCells().map((cell) => (
                       <td key={cell.id} className="px-4 py-3">
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
                     ))}
                   </tr>

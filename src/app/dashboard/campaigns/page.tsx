@@ -10,23 +10,37 @@ import {
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Users, Clock, XCircle, UserCheck } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
-// Dummy API
-async function fetchCampaigns({ pageParam = 0 }): Promise<any[]> {
+// ✅ Define campaign type
+type Campaign = {
+  id: string;
+  name: string;
+  status: string;
+  leads: number;
+  requestStatus: {
+    accepted: number;
+    pending: number;
+    failed: number;
+  };
+  connectionStatus?: {
+    connected: boolean;
+    messages: number;
+  };
+};
+
+// ✅ Fetch campaigns with proper type
+async function fetchCampaigns({ pageParam = 0 }): Promise<Campaign[]> {
   const res = await fetch(`/api/campaigns?page=${pageParam}`);
   if (!res.ok) throw new Error("Failed to fetch campaigns");
-  return res.json();
+  return res.json() as Promise<Campaign[]>;
 }
 
-
-
-type Campaign = Awaited<ReturnType<typeof fetchCampaigns>>[0];
-
 export default function CampaignsPage() {
-  const [filter, setFilter] = React.useState("all");
+  const [filter, setFilter] = React.useState<"all" | "active" | "inactive">(
+    "all"
+  );
 
   const {
     data,
@@ -42,7 +56,7 @@ export default function CampaignsPage() {
     initialPageParam: 0,
     getNextPageParam: (lastPage, pages) =>
       pages.length < 20 ? pages.length : undefined,
-    staleTime: 1000 * 60 * 1,
+    staleTime: 1000 * 60,
     gcTime: 1000 * 60 * 5,
   });
 
@@ -90,21 +104,20 @@ export default function CampaignsPage() {
       },
     },
     {
-  header: "Connection Status",
-  cell: ({ row }) => {
-    // safe destructuring with fallback
-    const { connected = false, messages = 0 } = row.original.connectionStatus ?? {};
-
-    return (
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-1 text-blue-600">
-          {connected ? "✅ Connected" : "❌ Not Connected"}
-        </div>
-        <div className="text-gray-500">Messages: {messages}</div>
-      </div>
-    );
-  },
-}
+      header: "Connection Status",
+      cell: ({ row }) => {
+        const { connected = false, messages = 0 } =
+          row.original.connectionStatus ?? {};
+        return (
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1 text-blue-600">
+              {connected ? "✅ Connected" : "❌ Not Connected"}
+            </div>
+            <div className="text-gray-500">Messages: {messages}</div>
+          </div>
+        );
+      },
+    },
   ];
 
   const table = useReactTable({
@@ -120,7 +133,6 @@ export default function CampaignsPage() {
     getScrollElement: () => parentRef.current,
     estimateSize: () => 60,
     overscan: 10,
-    // ❌ remove keyExtractor
   });
 
   // Infinite Scroll
@@ -148,7 +160,7 @@ export default function CampaignsPage() {
         <Button>Create Campaign</Button>
       </div>
 
-      {/* Filter Tabs + Search */}
+      {/* Filter Tabs */}
       <div className="flex items-center justify-between">
         <div className="flex gap-2">
           {["all", "active", "inactive"].map((f) => (
@@ -156,7 +168,7 @@ export default function CampaignsPage() {
               key={f}
               variant={filter === f ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilter(f)}
+              onClick={() => setFilter(f as "all" | "active" | "inactive")}
             >
               {f === "all"
                 ? "All Campaigns"
@@ -164,85 +176,79 @@ export default function CampaignsPage() {
             </Button>
           ))}
         </div>
-        <Input placeholder="Search campaigns..." className="w-64" />
       </div>
 
-      {/* Table with Virtual Scroll */}
-     <Card className="p-0 overflow-hidden h-[520px]">
-  {isPending && <div className="p-6 text-center">Loading campaigns...</div>}
-  {isError && (
-    <div className="p-6 text-center text-red-500">
-      Failed to load campaigns.
-    </div>
-  )}
-
-  {isSuccess && (
-    <div
-      ref={parentRef}
-      className="h-[600px] overflow-auto relative" // ✅ keep height consistent
-    >
-      <table className="w-full text-sm border-collapse">
-        <thead className="sticky top-0 bg-gray-50 z-10">
-          {table.getHeaderGroups().map((hg) => (
-            <tr key={hg.id}>
-              {hg.headers.map((header) => (
-                <th
-                  key={header.id}
-                  className="px-4 py-2 text-left font-medium text-gray-600 whitespace-nowrap"
-                >
-                  {flexRender(
-                    header.column.columnDef.header,
-                    header.getContext()
-                  )}
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        <tbody
-          style={{
-            height: `${rowVirtualizer.getTotalSize()}px`,
-            position: "relative",
-          }}
-        >
-          {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-            const row = table.getRowModel().rows[virtualRow.index];
-            return (
-              <tr
-               key={`${row.original.id ?? "row"}-${virtualRow.index}`}
-                className="border-b hover:bg-gray-50"
+      {/* Table */}
+      <Card className="p-0 overflow-hidden h-[520px]">
+        {isPending && <div className="p-6 text-center">Loading campaigns...</div>}
+        {isError && (
+          <div className="p-6 text-center text-red-500">
+            Failed to load campaigns.
+          </div>
+        )}
+        {isSuccess && (
+          <div ref={parentRef} className="h-[600px] overflow-auto relative">
+            <table className="w-full text-sm border-collapse">
+              <thead className="sticky top-0 bg-gray-50 z-10">
+                {table.getHeaderGroups().map((hg) => (
+                  <tr key={hg.id}>
+                    {hg.headers.map((header) => (
+                      <th
+                        key={header.id}
+                        className="px-4 py-2 text-left font-medium text-gray-600 whitespace-nowrap"
+                      >
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                      </th>
+                    ))}
+                  </tr>
+                ))}
+              </thead>
+              <tbody
                 style={{
-                  position: "absolute",
-                  top: 0,
-                  transform: `translateY(${virtualRow.start}px)`,
-                  display: "flex", // ✅ fix misalignment
-                  width: "100%",
+                  height: `${rowVirtualizer.getTotalSize()}px`,
+                  position: "relative",
                 }}
               >
-                {row.getVisibleCells().map((cell) => (
-                  <td
-                    key={cell.id}
-                    className="px-4 py-3 whitespace-nowrap flex-1"
-                  >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                  const row = table.getRowModel().rows[virtualRow.index];
+                  return (
+                    <tr
+                      key={`${row.original.id}-${virtualRow.index}`}
+                      className="border-b hover:bg-gray-50"
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        transform: `translateY(${virtualRow.start}px)`,
+                        display: "flex",
+                        width: "100%",
+                      }}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <td
+                          key={cell.id}
+                          className="px-4 py-3 whitespace-nowrap flex-1"
+                        >
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
 
-      <div
-        ref={loadMoreRef}
-        className="h-10 flex items-center justify-center text-gray-500"
-      >
-        {isFetchingNextPage && "Loading more..."}
-      </div>
-    </div>
-  )}
-</Card>
-
+            <div
+              ref={loadMoreRef}
+              className="h-10 flex items-center justify-center text-gray-500"
+            >
+              {isFetchingNextPage && "Loading more..."}
+            </div>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
