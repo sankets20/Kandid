@@ -1,3 +1,4 @@
+// src/app/api/campaigns/route.ts
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { campaigns } from "@/db/schema";

@@ -1,11 +1,12 @@
-import { drizzle } from "drizzle-orm/node-postgres";
+// src/db.ts
 import { Pool } from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
 import * as schema from "./schema";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
-    rejectUnauthorized: false, // ✅ important for Neon on Vercel
+    rejectUnauthorized: false, // ✅ required for Neon on Vercel
   },
 });
 

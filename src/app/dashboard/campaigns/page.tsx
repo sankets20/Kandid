@@ -30,17 +30,15 @@ type Campaign = {
   };
 };
 
-// ✅ Fetch campaigns with proper type
+// ✅ Fetch campaigns from API route
 async function fetchCampaigns({ pageParam = 0 }): Promise<Campaign[]> {
-  const res = await fetch(`/api/campaigns?page=${pageParam}`);
+  const res = await fetch("/api/campaigns");
   if (!res.ok) throw new Error("Failed to fetch campaigns");
-  return res.json() as Promise<Campaign[]>;
+  return res.json();
 }
 
 export default function CampaignsPage() {
-  const [filter, setFilter] = React.useState<"all" | "active" | "inactive">(
-    "all"
-  );
+  const [filter, setFilter] = React.useState<"all" | "active" | "inactive">("all");
 
   const {
     data,
@@ -53,17 +51,12 @@ export default function CampaignsPage() {
   } = useInfiniteQuery({
     queryKey: ["campaigns", filter],
     queryFn: ({ pageParam = 0 }) => fetchCampaigns({ pageParam }),
-    initialPageParam: 0,
-    getNextPageParam: (lastPage, pages) =>
-      pages.length < 20 ? pages.length : undefined,
+    getNextPageParam: (lastPage, pages) => undefined, // currently API returns all, no server pagination
     staleTime: 1000 * 60,
     gcTime: 1000 * 60 * 5,
   });
 
-  const campaigns: Campaign[] = React.useMemo(
-    () => data?.pages.flat() ?? [],
-    [data]
-  );
+  const campaigns: Campaign[] = React.useMemo(() => data?.pages.flat() ?? [], [data]);
 
   const columns: ColumnDef<Campaign>[] = [
     { header: "Campaign Name", accessorKey: "name" },
@@ -106,8 +99,7 @@ export default function CampaignsPage() {
     {
       header: "Connection Status",
       cell: ({ row }) => {
-        const { connected = false, messages = 0 } =
-          row.original.connectionStatus ?? {};
+        const { connected = false, messages = 0 } = row.original.connectionStatus ?? {};
         return (
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1 text-blue-600">
@@ -135,7 +127,7 @@ export default function CampaignsPage() {
     overscan: 10,
   });
 
-  // Infinite Scroll
+  // Infinite scroll (if you implement server pagination later)
   const loadMoreRef = React.useRef<HTMLDivElement | null>(null);
   React.useEffect(() => {
     if (!loadMoreRef.current || !hasNextPage) return;
@@ -154,13 +146,11 @@ export default function CampaignsPage() {
 
   return (
     <div className="p-6 space-y-4 max-w-7xl mx-auto">
-      {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold">Campaigns</h1>
         <Button>Create Campaign</Button>
       </div>
 
-      {/* Filter Tabs */}
       <div className="flex items-center justify-between">
         <div className="flex gap-2">
           {["all", "active", "inactive"].map((f) => (
@@ -170,22 +160,15 @@ export default function CampaignsPage() {
               size="sm"
               onClick={() => setFilter(f as "all" | "active" | "inactive")}
             >
-              {f === "all"
-                ? "All Campaigns"
-                : f.charAt(0).toUpperCase() + f.slice(1)}
+              {f === "all" ? "All Campaigns" : f.charAt(0).toUpperCase() + f.slice(1)}
             </Button>
           ))}
         </div>
       </div>
 
-      {/* Table */}
       <Card className="p-0 overflow-hidden h-[520px]">
         {isPending && <div className="p-6 text-center">Loading campaigns...</div>}
-        {isError && (
-          <div className="p-6 text-center text-red-500">
-            Failed to load campaigns.
-          </div>
-        )}
+        {isError && <div className="p-6 text-center text-red-500">Failed to load campaigns.</div>}
         {isSuccess && (
           <div ref={parentRef} className="h-[600px] overflow-auto relative">
             <table className="w-full text-sm border-collapse">
@@ -197,10 +180,7 @@ export default function CampaignsPage() {
                         key={header.id}
                         className="px-4 py-2 text-left font-medium text-gray-600 whitespace-nowrap"
                       >
-                        {flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
+                        {flexRender(header.column.columnDef.header, header.getContext())}
                       </th>
                     ))}
                   </tr>
@@ -227,10 +207,7 @@ export default function CampaignsPage() {
                       }}
                     >
                       {row.getVisibleCells().map((cell) => (
-                        <td
-                          key={cell.id}
-                          className="px-4 py-3 whitespace-nowrap flex-1"
-                        >
+                        <td key={cell.id} className="px-4 py-3 whitespace-nowrap flex-1">
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </td>
                       ))}
